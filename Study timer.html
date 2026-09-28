@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Study timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #dfe6d8;
+    --glow: #eef2e7;
+    --top: #f0f4e9;
+    --bot: #e4eadb;
+    --ink: #34493f;
+    --hinge: #c2ccb7;
+    --muted: #5a6f64;
+    --accent: #5f8a78;
+    --accent-ink: #f3f7ee;
+    --shadow: rgba(52, 73, 63, .2);
+    --panel: rgba(255, 255, 255, .4);
+    --font: "Sora", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --cw: clamp(44px, min(10.5vw, 20vh), 140px);
+    --ch: calc(var(--cw) * 1.32);
+    --r: calc(var(--cw) * .1);
+
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141d1b;
+      --glow: #1e2c29;
+      --top: #2c3d37;
+      --bot: #243530;
+      --ink: #d6e2cf;
+      --hinge: #101816;
+      --muted: #94ab9f;
+      --accent: #8fbfa9;
+      --accent-ink: #10201a;
+      --shadow: rgba(0, 0, 0, .45);
+      --panel: rgba(255, 255, 255, .05);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141d1b;
+    --glow: #1e2c29;
+    --top: #2c3d37;
+    --bot: #243530;
+    --ink: #d6e2cf;
+    --hinge: #101816;
+    --muted: #94ab9f;
+    --accent: #8fbfa9;
+    --accent-ink: #10201a;
+    --shadow: rgba(0, 0, 0, .45);
+    --panel: rgba(255, 255, 255, .05);
+  }
+  @media (orientation: portrait) {
+    :root { --cw: clamp(56px, min(25vw, 12.5vh), 130px); }
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(ellipse at 50% 35%, var(--glow), var(--bg) 70%) var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-tap-highlight-color: transparent;
+    transition: background .4s, color .4s;
+  }
+  main {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1.2rem, 4vh, 2.4rem);
+    padding: 1.5rem 1rem;
+  }
+
+  .theme {
+    position: fixed;
+    top: env(safe-area-inset-top, 0px);
+    right: 0;
+    margin: .8rem;
+    width: 2.6rem; height: 2.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--hinge);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  /* ---------- clock ---------- */
+  .clock { display: flex; align-items: flex-start; gap: calc(var(--cw) * .32); }
+  .unit { display: flex; flex-direction: column; align-items: center; gap: .8rem; }
+  .pair { display: flex; gap: calc(var(--cw) * .12); }
+  .label { font-size: .78rem; color: var(--muted); letter-spacing: .05em; }
+  .sep {
+    height: var(--ch);
+    display: flex; flex-direction: column; justify-content: center;
+    gap: calc(var(--cw) * .2);
+  }
+  .sep i {
+    display: block;
+    width: calc(var(--cw) * .1); height: calc(var(--cw) * .1);
+    border-radius: 50%;
+    background: var(--muted);
+    opacity: .55;
+  }
+  @media (orientation: portrait) {
+    .clock { flex-direction: column; align-items: center; gap: 1.1rem; }
+    .sep { display: none; }
+  }
+
+  /* ---------- flip card ---------- */
+  .card {
+    position: relative;
+    width: var(--cw);
+    height: var(--ch);
+    perspective: calc(var(--cw) * 5);
+    border-radius: var(--r);
+    font-weight: 600;
+    font-size: calc(var(--ch) * .64);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    box-shadow: 0 calc(var(--cw) * .08) calc(var(--cw) * .22) var(--shadow);
+    user-select: none;
+  }
+  .half {
+    position: absolute; left: 0;
+    width: 100%; height: 50%;
+    overflow: hidden;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .half span {
+    position: absolute; left: 0;
+    width: 100%; height: var(--ch);
+    line-height: var(--ch);
+    text-align: center;
+  }
+  .t { top: 0; background: var(--top); border-radius: var(--r) var(--r) 0 0; transform-origin: 50% 100%; }
+  .b { top: 50%; background: var(--bot); border-radius: 0 0 var(--r) var(--r); transform-origin: 50% 0; }
+  .t span { top: 0; }
+  .b span { top: calc(var(--ch) * -.5); }
+
+  .static { z-index: 1; }
+  .flap { display: none; }
+  .flap.t { z-index: 4; }
+  .flap.b { z-index: 3; }
+  .flipping .flap { display: block; }
+
+  /* the hinge and the two little side notches, like a desk calendar */
+  .card::after {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 50%;
+    height: 2px; margin-top: -1px;
+    background: var(--hinge);
+    z-index: 5;
+  }
+  .card::before {
+    content: "";
+    position: absolute; left: calc(var(--cw) * -.035); top: 50%;
+    width: calc(var(--cw) * .07); height: calc(var(--cw) * .07);
+    margin-top: calc(var(--cw) * -.035);
+    border-radius: 50%;
+    background: var(--bg);
+    box-shadow: calc(var(--cw) + var(--cw) * .0) 0 0 var(--bg);
+    z-index: 6;
+  }
+
+  @keyframes flipTop {
+    from { transform: rotateX(0);       filter: brightness(1); }
+    to   { transform: rotateX(-90deg);  filter: brightness(.72); }
+  }
+  @keyframes flipBottom {
+    from { transform: rotateX(90deg);   filter: brightness(.85); }
+    to   { transform: rotateX(0);       filter: brightness(1); }
+  }
+  .flipping .flap.t { animation: flipTop .3s ease-in forwards; }
+  .flipping .flap.b { animation: flipBottom .34s .3s cubic-bezier(.2, .9, .3, 1.18) both; }
+
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 calc(var(--cw) * .08) calc(var(--cw) * .22) var(--shadow); }
+    50%      { box-shadow: 0 0 calc(var(--cw) * .5) var(--accent); }
+  }
+  body[data-state="done"] .card { animation: breathe 3.2s ease-in-out infinite; }
+
+  /* ---------- controls ---------- */
+  #status { margin: 0; min-height: 1.4em; color: var(--muted); font-size: .95rem; text-align: center; }
+
+  .panel {
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    padding: 1.1rem 1.3rem;
+    border: 1px solid var(--hinge);
+    border-radius: 1.2rem;
+    background: var(--panel);
+    max-width: 100%;
+  }
+  body:not([data-state="idle"]) .panel { display: none; }
+  .fields { display: flex; gap: .8rem; }
+  .field { display: flex; flex-direction: column; align-items: center; gap: .3rem; font-size: .75rem; color: var(--muted); }
+  .field input {
+    width: 4.6rem;
+    padding: .6rem .2rem;
+    font: 600 1.3rem var(--font);
+    text-align: center;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--hinge);
+    border-radius: .8rem;
+  }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+  .chip, .btn {
+    font-family: var(--font);
+    cursor: pointer;
+    transition: transform .15s, opacity .2s;
+  }
+  .chip {
+    padding: .45rem .9rem;
+    font-size: .85rem;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--hinge);
+    border-radius: 999px;
+  }
+  .btn {
+    padding: .9rem 2rem;
+    font-size: 1rem; font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+  }
+  .btn.ghost { color: var(--ink); background: transparent; border-color: var(--hinge); }
+  .chip:active, .btn:active { transform: scale(.96); }
+  .row { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; }
+  body[data-state="idle"] #reset { display: none; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    body[data-state="done"] .card { animation: none; }
+  }
+</style>
+</head>
+<body data-state="idle">
+<button class="theme" id="theme" aria-label="Switch light or dark">◐</button>
+
+<main>
+  <div class="clock" id="clock" role="timer" aria-label="Time remaining">
+    <div class="unit"><div class="pair" data-unit="h"></div><span class="label">hours</span></div>
+    <div class="sep" aria-hidden="true"><i></i><i></i></div>
+    <div class="unit"><div class="pair" data-unit="m"></div><span class="label">minutes</span></div>
+    <div class="sep" aria-hidden="true"><i></i><i></i></div>
+    <div class="unit"><div class="pair" data-unit="s"></div><span class="label">seconds</span></div>
+  </div>
+
+  <p id="status" aria-live="polite">Choose your study time, then press Start.</p>
+
+  <section class="panel" id="panel">
+    <div class="fields">
+      <label class="field"><input id="inH" type="number" inputmode="numeric" min="0" max="23" value="0"><span>hours</span></label>
+      <label class="field"><input id="inM" type="number" inputmode="numeric" min="0" value="25"><span>minutes</span></label>
+      <label class="field"><input id="inS" type="number" inputmode="numeric" min="0" value="0"><span>seconds</span></label>
+    </div>
+    <div class="chips">
+      <button class="chip" data-min="25">25 min</button>
+      <button class="chip" data-min="45">45 min</button>
+      <button class="chip" data-min="60">1 hour</button>
+      <button class="chip" data-min="90">1.5 hours</button>
+      <button class="chip" data-min="120">2 hours</button>
+    </div>
+    <button class="chip" id="preview">Preview the chime</button>
+  </section>
+
+  <div class="row">
+    <button class="btn" id="main">Start</button>
+    <button class="btn ghost" id="reset">Reset</button>
+  </div>
+</main>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- flip digit ---------- */
+  function makeDigit(parent) {
+    var el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML =
+      '<div class="half t static"><span>0</span></div>' +
+      '<div class="half b static"><span>0</span></div>' +
+      '<div class="half t flap"><span>0</span></div>' +
+      '<div class="half b flap"><span>0</span></div>';
+    parent.appendChild(el);
+    var sT = el.children[0].firstChild, sB = el.children[1].firstChild,
+        fT = el.children[2].firstChild, fB = el.children[3].firstChild;
+    var val = '0', busy = false, timeout = null;
+
+    function finish() {
+      clearTimeout(timeout);
+      el.classList.remove('flipping');
+      sT.textContent = sB.textContent = val;
+      busy = false;
+    }
+    return {
+      set: function (v, animate) {
+        if (v === val) return;
+        if (busy) finish();
+        var old = val;
+        val = v;
+        if (!animate || reduceMotion) {
+          sT.textContent = sB.textContent = v;
+          return;
+        }
+        sT.textContent = v;      // new number waits behind the falling page
+        sB.textContent = old;    // old number stays below until the new page lands
+        fT.textContent = old;
+        fB.textContent = v;
+        el.classList.remove('flipping');
+        void el.offsetWidth;
+        el.classList.add('flipping');
+        busy = true;
+        timeout = setTimeout(finish, 720);
+      }
+    };
+  }
+
+  var digits = [];
+  document.querySelectorAll('.pair').forEach(function (p) {
+    digits.push(makeDigit(p), makeDigit(p));
+  });
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function render(totalSec, animate) {
+    var h = Math.floor(totalSec / 3600), m = Math.floor(totalSec % 3600 / 60), s = totalSec % 60;
+    var str = pad(h) + pad(m) + pad(s);
+    for (var i = 0; i < 6; i++) digits[i].set(str[i], animate);
+    document.title = (state === 'running' || state === 'paused' || state === 'done')
+      ? (h ? pad(h) + ':' : '') + pad(m) + ':' + pad(s) + ' · Study timer'
+      : 'Study timer';
+  }
+
+  /* ---------- gentle chime ---------- */
+  var ctx = null, chimeTimers = [], chimeMasters = [];
+  function ensureAudio() {
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function tone(dest, freq, t, dur, peak) {
+    [[1, 1], [2, .16], [3, .05]].forEach(function (p) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq * p[0];
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak * p[1], t + .06);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(dest);
+      o.start(t); o.stop(t + dur + .1);
+    });
+  }
+  function chimeRound() {
+    if (!ensureAudio()) return;
+    var master = ctx.createGain(), lp = ctx.createBiquadFilter();
+    master.gain.value = .5;
+    lp.type = 'lowpass'; lp.frequency.value = 2200;
+    master.connect(lp); lp.connect(ctx.destination);
+    chimeMasters.push(master);
+    var notes = [392.00, 523.25, 659.25, 783.99];   // G4 C5 E5 G5, a soft rising arpeggio
+    var t0 = ctx.currentTime + .05;
+    notes.forEach(function (f, i) { tone(master, f, t0 + i * .6, 4.2, .22); });
+  }
+  function playChime(rounds) {
+    stopChime();
+    var n = rounds || 3;
+    for (var r = 0; r < n; r++) {
+      chimeTimers.push(setTimeout(chimeRound, r * 7000));
+    }
+  }
+  function stopChime() {
+    chimeTimers.forEach(clearTimeout); chimeTimers = [];
+    chimeMasters.forEach(function (m) {
+      try { m.gain.cancelScheduledValues(ctx.currentTime); m.gain.setTargetAtTime(0, ctx.currentTime, .15); } catch (e) {}
+    });
+    chimeMasters = [];
+  }
+
+  /* ---------- keep screen awake ---------- */
+  var wake = null;
+  function requestWake() {
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () {}); } catch (e) {}
+  }
+  function releaseWake() {
+    try { if (wake) wake.release(); } catch (e) {}
+    wake = null;
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      if (state === 'running') { requestWake(); tick(); }
+    }
+  });
+
+  /* ---------- timer ---------- */
+  var state = 'idle', remainingMs = 0, endAt = 0, timer = null, lastShown = -1;
+  var inH = $('#inH'), inM = $('#inM'), inS = $('#inS');
+  var mainBtn = $('#main'), resetBtn = $('#reset'), status = $('#status');
+
+  function num(el) { var n = parseInt(el.value, 10); return isNaN(n) || n < 0 ? 0 : n; }
+  function chosenSeconds() {
+    return Math.min(99 * 3600 + 59 * 60 + 59, num(inH) * 3600 + num(inM) * 60 + num(inS));
+  }
+
+  function setUI() {
+    document.body.setAttribute('data-state', state);
+    var labels = { idle: 'Start', running: 'Pause', paused: 'Resume', done: 'Stop the chime' };
+    var texts = {
+      idle: 'Choose your study time, then press Start.',
+      running: 'Focus time. Phone face-down, this screen is your clock.',
+      paused: 'Paused. Resume when you are ready.',
+      done: 'Time is up. Stand, stretch and drink some water.'
+    };
+    mainBtn.textContent = labels[state];
+    status.textContent = texts[state];
+  }
+
+  function tick() {
+    if (state !== 'running') return;
+    remainingMs = Math.max(0, endAt - Date.now());
+    var sec = Math.ceil(remainingMs / 1000);
+    if (sec !== lastShown) { lastShown = sec; render(sec, true); }
+    if (remainingMs <= 0) complete();
+  }
+
+  function begin() {
+    endAt = Date.now() + remainingMs;
+    state = 'running';
+    clearInterval(timer);
+    timer = setInterval(tick, 250);
+    requestWake();
+    setUI();
+  }
+
+  function start() {
+    ensureAudio(); // must be unlocked by a tap, so the chime can play later
+    var total = chosenSeconds();
+    if (total <= 0) { status.textContent = 'Pick a time above zero first.'; return; }
+    remainingMs = total * 1000;
+    lastShown = total;
+    render(total, false);
+    begin();
+  }
+
+  function pause() {
+    clearInterval(timer);
+    remainingMs = Math.max(0, endAt - Date.now());
+    state = 'paused';
+    releaseWake();
+    setUI();
+  }
+
+  function complete() {
+    clearInterval(timer);
+    state = 'done';
+    render(0, true);
+    releaseWake();
+    setUI();
+    playChime(3);
+  }
+
+  function reset() {
+    clearInterval(timer);
+    stopChime();
+    state = 'idle';
+    releaseWake();
+    lastShown = -1;
+    render(chosenSeconds(), true);
+    setUI();
+  }
+
+  mainBtn.addEventListener('click', function () {
+    if (state === 'idle') start();
+    else if (state === 'running') pause();
+    else if (state === 'paused') { ensureAudio(); begin(); }
+    else if (state === 'done') reset();
+  });
+  resetBtn.addEventListener('click', reset);
+
+  [inH, inM, inS].forEach(function (el) {
+    el.addEventListener('input', function () { if (state === 'idle') render(chosenSeconds(), true); });
+    el.addEventListener('focus', function () { el.select(); });
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { el.blur(); start(); } });
+  });
+
+  document.querySelectorAll('.chip[data-min]').forEach(function (c) {
+    c.addEventListener('click', function () {
+      var m = parseInt(c.getAttribute('data-min'), 10);
+      inH.value = Math.floor(m / 60);
+      inM.value = m % 60;
+      inS.value = 0;
+      render(chosenSeconds(), true);
+    });
+  });
+
+  $('#preview').addEventListener('click', function () { ensureAudio(); playChime(1); });
+
+  /* ---------- theme ---------- */
+  $('#theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var current = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  });
+
+  render(chosenSeconds(), false);
+  setUI();
+})();
+</script>
+</body>
+</html>
